@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+skills_home="${CLAUDE_SKILLS_HOME:-$HOME/.claude/skills}"
+
+usage() {
+  cat <<EOF
+outreach-stack
+
+usage:
+  ./setup              install (symlink) every skill into $skills_home
+  ./setup --list       show which outreach-stack skills are installed
+  ./setup --uninstall  remove the symlinks this repo created
+  ./setup --help       show this message
+
+set CLAUDE_SKILLS_HOME to target a directory other than ~/.claude/skills
+EOF
+}
+
+skill_sources() {
+  for skill_md in "$repo_root"/*/SKILL.md; do
+    [ -e "$skill_md" ] || continue
+    dirname "$skill_md"
+  done
+}
+
+points_here() {
+  [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ]
+}
+
+install() {
+  mkdir -p "$skills_home"
+  local installed=() skipped=()
+  while IFS= read -r skill_dir; do
+    local skill_name target
+    skill_name="$(basename "$skill_dir")"
+    target="$skills_home/$skill_name"
+    if points_here "$target" "$skill_dir"; then
+      installed+=("$skill_name")
+    elif [ -L "$target" ]; then
+      rm "$target"
+      ln -s "$skill_dir" "$target"
+      installed+=("$skill_name")
+    elif [ -e "$target" ]; then
+      skipped+=("$skill_name")
+    else
+      ln -s "$skill_dir" "$target"
+      installed+=("$skill_name")
+    fi
+  done < <(skill_sources)
+
+  echo "outreach-stack -> $skills_home"
+  echo
+  if [ "${#installed[@]}" -gt 0 ]; then
+    echo "installed skills:"
+    printf '  - %s\n' "${installed[@]}"
+  fi
+  if [ "${#skipped[@]}" -gt 0 ]; then
+    echo
+    echo "skipped (a real file or directory already lives at these names, remove it and re-run):"
+    printf '  - %s\n' "${skipped[@]}"
+  fi
+  echo
+  echo "next: open Claude Code and type"
+  echo "  write a cold email to <person, by role> asking for <one thing>"
+}
+
+list_installed() {
+  echo "skills in $skills_home:"
+  while IFS= read -r skill_dir; do
+    local skill_name target
+    skill_name="$(basename "$skill_dir")"
+    target="$skills_home/$skill_name"
+    if points_here "$target" "$skill_dir"; then
+      echo "  - $skill_name (installed)"
+    else
+      echo "  - $skill_name (not installed)"
+    fi
+  done < <(skill_sources)
+}
+
+uninstall() {
+  local removed=()
+  while IFS= read -r skill_dir; do
+    local skill_name target
+    skill_name="$(basename "$skill_dir")"
+    target="$skills_home/$skill_name"
+    if points_here "$target" "$skill_dir"; then
+      rm "$target"
+      removed+=("$skill_name")
+    fi
+  done < <(skill_sources)
+  if [ "${#removed[@]}" -gt 0 ]; then
+    echo "removed:"
+    printf '  - %s\n' "${removed[@]}"
+  else
+    echo "nothing to remove in $skills_home"
+  fi
+}
+
+case "${1:-}" in
+  "") install ;;
+  --list) list_installed ;;
+  --uninstall) uninstall ;;
+  --help|-h) usage ;;
+  *) usage; exit 1 ;;
+esac

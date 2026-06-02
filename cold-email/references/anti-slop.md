@@ -1,0 +1,1 @@
+../../shared/anti-slop.md
