@@ -66,7 +66,7 @@ What changed: the dead opener, the feature dump, and the vague "synergies" close
 ## Install
 
 ```sh
-git clone https://github.com/YOUR-GH-USERNAME/outreach-stack && cd outreach-stack && ./setup
+git clone https://github.com/alqzowskiy/outreach-stack && cd outreach-stack && ./setup
 ```
 
 `setup` symlinks each skill into `~/.claude/skills/`, so a later `git pull` updates your skills with no reinstall. It is safe to re-run.
